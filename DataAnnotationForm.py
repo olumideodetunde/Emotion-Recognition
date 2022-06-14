@@ -1,12 +1,14 @@
-# import openpyxl and tkinter modules
+# import necessary modules
+from email.policy import strict
 import os
+import sys
 import tkinter
 from tkinter.messagebox import QUESTION
 from matplotlib.pyplot import get
 from openpyxl import *
 from tkinter import *
-from playsound import playsound
 from datetime import datetime
+import simpleaudio as sa
 
 # globally declare wb and sheet variable and opening the existing excel file
 wb = load_workbook('./Excel Database 2.xlsx')
@@ -18,7 +20,8 @@ start_time = None #timestamp
 end_time = None #timestamp
 emotion = None #widget
 emotion_rating = None #widget
-sound_list  = None
+sound_list  = None #list of sound to be played per group selection
+current_selection = None  #sound group selection from dropdown menu
 file_path_dict = {"Animal Sound Block 1":"./IADS-E/IADS-E sound stimuli (IADS-2 is not included)/Animal/Block 1",  
 				  "Animal Sound Block 2":"./IADS-E/IADS-E sound stimuli (IADS-2 is not included)/Animal/Block 2",
 				  "Nature Sound Block 1":"./IADS-E/IADS-E sound stimuli (IADS-2 is not included)/Nature/Block 1", 
@@ -28,6 +31,7 @@ file_path_dict = {"Animal Sound Block 1":"./IADS-E/IADS-E sound stimuli (IADS-2 
 				  "Transport Sound Block 1":"./IADS-E/IADS-E sound stimuli (IADS-2 is not included)/Transport/Block 1",
 				  "Transport Sound Block 2":"./IADS-E/IADS-E sound stimuli (IADS-2 is not included)/Transport/Block 2",
 				  "Practice Sound":"./IADS-E/IADS-E sound stimuli (IADS-2 is not included)/Practice sound"}
+
 
 #create a function that retrieves the sound group&blocks from dropdown menu and returns the file_path using globally defined _file path dictionary
 def compile_sound_group(folder):
@@ -51,6 +55,8 @@ def compile_sounds(dir_path):
 
 #Logic steps that takes when a dropmenu option is selected
 def get_sound_group(sound_group_selection):
+	global current_selection
+	current_selection = sound_group_selection
 	global sound_list, idx #redefine the global soundlist and counter
 	path = compile_sound_group(sound_group_selection) #obtain the file_path
 	sound_list = compile_sounds(path) #compile the sound using the file_path
@@ -67,6 +73,7 @@ def excel():
 	sheet.column_dimensions['E'].width = 30
 	sheet.column_dimensions['F'].width = 30
 	sheet.column_dimensions['G'].width = 30
+	sheet.column_dimensions['H'].width = 30
 
 	# write given data to an excel spreadsheet at particular location
 	sheet.cell(row=1, column=1).value = "SoundID"
@@ -75,11 +82,11 @@ def excel():
 	sheet.cell(row=1, column=4).value = "Emotionrating"
 	sheet.cell(row=1, column=5).value = "Endtime"
 	sheet.cell(row=1, column=6).value = "UserID"
-	sheet.cell(row=1, column=6).value = "Soundgroup"
+	sheet.cell(row=1, column=7).value = "Soundgroup"
+	sheet.cell(row=1, column=8).value = "Soundgroupselection"
 
 # Functions to take data from GUI window and write to an excel file
 def insert():
-	print("Insert")
 	global start_time
 	global end_time
 	global idx
@@ -98,14 +105,13 @@ def insert():
 	sheet.cell(row=current_row + 1, column=5).value = end_time
 	sheet.cell(row=current_row + 1, column=6).value = user_id_field.get()
 	sheet.cell(row=current_row + 1, column=7).value = sound_group.get().split(" ")[0] #gets the string, splits it and select the first element
-
+	sheet.cell(row=current_row + 1, column=8).value = sound_group.get()
 	# save the file
 	wb.save('./Excel Database 2.xlsx')
 
 	#update the id and refresh screen or end program
 	idx += 1
 	if idx < len(sound_list):
-		print('continue to the next question')
 		refresh_screen(idx)
 	else:
 		# inform user that category sounds has been completed
@@ -127,18 +133,23 @@ def get_start_time():
 
 	#Function to playsound
 def play():
+	global file_path_dict
+	global current_selection
+	path = file_path_dict[current_selection] #path of sound group selection
 	global start_time
 	global sound_list
 	global idx
 	start_time = get_start_time() #get starttime upon clicking plays sound
-	playsound(sound_list[idx])
+	wave_obj = sa.WaveObject.from_wave_file(path + "/" + sound_list[idx]) #input combine path of soundfile
+	play_obj = wave_obj.play() #play soundfile
+	play_obj.wait_done()
 
 	#Function to collect endtime timestamp
 def get_end_time():
 	current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 	return current_time
 
-
+ 
 # Driver code
 if __name__ == "__main__":
 
@@ -194,7 +205,7 @@ if __name__ == "__main__":
 	w4.grid(row=6, column=1, ipadx="30")
 
 	#create emotion rating dropdown label
-	emotion_rating_label = Label (root,text= f'Emotion Intensity' , fg="Black", bg="Light Blue")
+	emotion_rating_label = Label (root,text= 'Emotion Intensity' , fg="Black", bg="Light Blue")
 	emotion_rating_label.grid(row=6,column=0)
 
 	# call excel function
